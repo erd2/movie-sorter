@@ -62,13 +62,18 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   String _selectedGenre = 'All';
+  String _searchQuery = '';
+  double _minRating = 0.0;
   final List<String> _genres = ['All', 'Action', 'Comedy', 'Drama', 'Horror'];
 
   @override
   Widget build(BuildContext context) {
-    final filteredMovies = _selectedGenre == 'All'
-        ? _allMovies
-        : _allMovies.where((movie) => movie.genre == _selectedGenre).toList();
+    final filteredMovies = _allMovies.where((movie) {
+      final matchesGenre = _selectedGenre == 'All' || movie.genre == _selectedGenre;
+      final matchesSearch = movie.title.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesRating = movie.rating >= _minRating;
+      return matchesGenre && matchesSearch && matchesRating;
+    }).toList();
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -82,41 +87,82 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(color: Colors.white),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
-                const Text('Genre Filter:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedGenre,
-                    icon: const Icon(Icons.keyboard_arrow_down),
-                    items: _genres.map((String genre) {
-                      return DropdownMenuItem<String>(
-                        value: genre,
-                        child: Text(genre, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedGenre = newValue!;
-                      });
-                    },
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search by title...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
                   ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Genre:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedGenre,
+                          isExpanded: true,
+                          items: _genres.map((String genre) {
+                            return DropdownMenuItem<String>(
+                              value: genre,
+                              child: Text(genre),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _selectedGenre = newValue!;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Text('Min Rating:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(width: 8),
+                    Text(_minRating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                  ],
+                ),
+                Slider(
+                  value: _minRating,
+                  min: 0,
+                  max: 10,
+                  divisions: 20,
+                  label: _minRating.toStringAsFixed(1),
+                  onChanged: (value) {
+                    setState(() {
+                      _minRating = value;
+                    });
+                  },
                 ),
               ],
             ),
           ),
           const Divider(height: 1),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.only(top: 8),
-              itemCount: filteredMovies.length,
-              itemBuilder: (context, index) {
-                return MovieCard(movie: filteredMovies[index]);
-              },
-            ),
+            child: filteredMovies.isEmpty
+                ? const Center(child: Text('No movies found'))
+                : ListView.builder(
+                    padding: const EdgeInsets.only(top: 8),
+                    itemCount: filteredMovies.length,
+                    itemBuilder: (context, index) {
+                      return MovieCard(movie: filteredMovies[index]);
+                    },
+                  ),
           ),
         ],
       ),
